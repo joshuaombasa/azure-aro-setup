@@ -1,0 +1,97 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "resources": [
+      {
+        "type": "Microsoft.Network/virtualNetworks",
+        "apiVersion": "2021-05-01",
+        "name": "aro-vnet",
+        "location": "eastus",
+        "properties": {
+          "addressSpace": {
+            "addressPrefixes": ["10.0.0.0/9"]
+          },
+          "subnets": [
+            {
+              "name": "master-subnet",
+              "properties": {
+                "addressPrefix": "10.0.0.0/24",
+                "delegations": [
+                  {
+                    "name": "Microsoft.ContainerService/managedClusters",
+                    "properties": {
+                      "serviceName": "Microsoft.ContainerService/managedClusters"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "name": "worker-subnet",
+              "properties": {
+                "addressPrefix": "10.0.1.0/24",
+                "delegations": [
+                  {
+                    "name": "Microsoft.ContainerService/managedClusters",
+                    "properties": {
+                      "serviceName": "Microsoft.ContainerService/managedClusters"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "type": "Microsoft.RedHatOpenShift/openShiftClusters",
+        "apiVersion": "2021-09-01",
+        "name": "aro-cluster",
+        "location": "eastus",
+        "dependsOn": [
+          "[resourceId('Microsoft.Network/virtualNetworks', 'aro-vnet')]"
+        ],
+        "properties": {
+          "clusterProfile": {
+            "domain": "aro-domain",
+            "resourceGroupId": "[resourceId('Microsoft.Resources/resourceGroups', 'aro-resource-group')]",
+            "fipsValidatedModules": "Enabled",
+            "version": "4.8"
+          },
+          "networkProfile": {
+            "podCidr": "10.128.0.0/14",
+            "serviceCidr": "172.30.0.0/16"
+          },
+          "masterProfile": {
+            "vmSize": "Standard_D8s_v3",
+            "subnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', 'aro-vnet', 'master-subnet')]"
+          },
+          "workerProfiles": [
+            {
+              "name": "worker",
+              "vmSize": "Standard_D4s_v3",
+              "diskSizeGB": 128,
+              "subnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', 'aro-vnet', 'worker-subnet')]",
+              "count": 3
+            }
+          ],
+          "apiserverProfile": {
+            "visibility": "Public"
+          },
+          "ingressProfiles": [
+            {
+              "name": "default",
+              "visibility": "Public"
+            }
+          ]
+        }
+      }
+    ],
+    "outputs": {
+      "clusterCredentials": {
+        "type": "object",
+        "value": "[reference(resourceId('Microsoft.RedHatOpenShift/openShiftClusters', 'aro-cluster')).clusterCredentials]"
+      }
+    }
+  }
+  
