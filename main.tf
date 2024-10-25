@@ -119,3 +119,7 @@ resource "azurerm_redhat_open_shift_cluster" "aro_cluster" {
 output "cluster_credentials" {
   value = azurerm_redhat_open_shift_cluster.aro_cluster.console_profile.url
 }
+
+
+# To deploy the cluster
+# terraform init && terraform deploy
